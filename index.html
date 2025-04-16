@@ -1,1 +1,723 @@
-Hello World
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="MobileOptimized" content="width"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MPNjs</title>
+  <style>
+
+/* //desktop */
+@media only screen
+and (min-width : 1200) {
+
+
+}
+
+/* //tablet landscape */
+@media screen and (min-width: 1024px) and (max-width: 1600px)  {
+
+} 
+/* // end media query */
+
+/* //tablet portrait */
+@media screen and (min-width: 768px) and (max-width: 1023px)  {
+
+}
+/* //end media definition */
+
+
+/* //smartphone landscape */
+@media screen and (min-width: 480px) and (max-width: 767px)  {
+
+}
+/* //end media query */
+
+
+
+/* //smartphone portrait */
+@media screen /*and (min-width: 320px)*/
+and (max-width: 479px) {
+}
+
+/* //end media query */
+
+    body {
+      margin: 2;
+      height: 40%;
+      padding: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      margin-left: 20px; /* Add 20px left margin */
+      background-color: #e0e0e0 ; //#b8b8b8;
+      font-family: Arial, Helvetica, sans-serif;
+      /* font: 1em sans-serif; */
+    }
+	
+	
+	
+	input[type="number"], select {
+		width: 60px; /* changed to 60 */
+		/* margin-left: 0px;  */
+    margin-left: 0.5em;
+    margin-bottom: 4px;
+    /* font: 1em sans-serif; */
+    font-family: Arial, Helvetica, sans-serif;
+    font-weight: bold;
+    padding: 3px;
+    box-shadow: 3px 3px 5px grey;
+    border-radius: 4px;
+    border: 2px solid #e4e4e4;
+	}
+	
+	.input-group {
+		display: flex;
+		align-items: center;
+		justify-content: flex-start;
+		margin-bottom: 5px;
+	}
+	
+	.input-group label {
+		white-space: nowrap;
+		margin-right: 10px;
+	}
+	
+	
+    .parent-container {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      grid-gap: 10px;
+    }
+
+    .grid-container {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      grid-template-rows: repeat(6, 1fr);
+      grid-gap: 1px;
+      width: 100px;
+      height: 100px;
+    }
+
+    .grid-item {
+      background-color: #a5a5a5;
+    }
+
+    .grid-item.black {
+      background-color: black;
+    }
+
+    .text-container {
+      /* font-size: 24px; */
+      font-weight: bold;
+    }
+
+    label { 
+      padding: 3px;  
+      display: inline-block; 
+      width: 120px; 
+      text-align: right; 
+      font-family: Arial, Helvetica, sans-serif;
+      /* font-weight: bold; */
+    }
+
+    .label2 { 
+      padding: 3px;
+      display: inline-block; 
+      width: 100px; 
+      text-align: left; 
+      font-family: Arial, Helvetica, sans-serif;
+      /* font-weight: bold; */
+    }
+
+    button {
+        /* Align buttons with the text fields */
+        /* padding-left: 90px; /* same size as the label elements */
+        padding: 1px;
+        border-radius: 5px;
+        outline: 2px solid gray;
+        margin-left: 0.5em;
+        font-family: Arial, Helvetica, sans-serif;
+        /* font-weight: bold; */
+        font: inherit;
+        box-shadow: 3px 3px 5px grey;
+        /* font: 1em sans-serif; */
+    }
+
+    #button:focus {
+      outline: 2px solid gray;
+      font-weight: bold;
+      color: white;
+}
+
+    #button:hover {
+        background-color: rgb(123, 154, 246);
+        box-shadow: 3px 3px 5px grey;
+      }
+	
+	footer a {
+    color: #007bff; /* Typical link color */
+    text-decoration: none; /* Optional: removes underline */
+}
+
+footer a:hover, footer a:focus {
+    text-decoration: underline; /* Adds underline on hover/focus for better accessibility */
+}
+
+    </style>
+  
+</head>
+<body>
+  <div class="parent-container">
+    <div class="grid-container" id="grid-container-1"></div>
+    <div class="text-container">
+      <h2>MPN.js</h2>
+    </div>
+    <div class="grid-container" id="grid-container-2"></div>
+  </div>
+  <br><br>
+  <label for="numLevels">Select 1 or 2: </label>
+  <input type="number" id="numLevels" min="1" max="2" oninput="toggleButtonState()">
+  <button id="generateButton" onclick="addDilutionLevels()" disabled>Generate</button>
+  <div id="inputFields"></div>
+  <br>
+  <div id="results" style="margin-top: 20px;"></div>
+ 
+  
+  <script>
+    //unique id for mpn session
+	function generateSecureSessionID() {
+  return 'SID' + crypto.getRandomValues(new Uint32Array(1))[0].toString(36);
+}
+const sessionID = generateSecureSessionID();
+console.log(sessionID);
+  
+    // Create grid logo
+    const gridContainer1 = document.getElementById('grid-container-1');
+    createGrid(gridContainer1);
+
+    function createGrid(container) {
+      for (let i = 0; i < 48; i++) {
+        const gridItem = document.createElement('div');
+        gridItem.classList.add('grid-item');
+
+        // Randomly decide whether to make the grid item black
+        if (Math.random() < 0.6) {
+          gridItem.classList.add('black');
+        }
+
+        container.appendChild(gridItem);
+      }
+    }
+  // end grid func
+
+    function addDilutionLevels() {
+      const numLevels = sanitizeInput(document.getElementById('numLevels').value, 1, 2);
+      if (numLevels === null) {
+        alert('Please enter a valid number between 1 and 2.');
+        return;
+      }
+      const container = document.getElementById('inputFields');
+      container.innerHTML = ''; // Clear previous inputs
+
+      for (let i = 0; i < numLevels; i++) {
+        let defaultDilutionFactor, defaultVolume, defaultTotal, defaultPositive;
+
+        // Customize default values
+        if (numLevels === 1) {
+          defaultDilutionFactor = 0.01;
+          defaultVolume = 1.96;
+          defaultPositive = 30;
+          defaultTotal = 51;
+        } else if (numLevels === 2) {
+          defaultDilutionFactor = 0.01;
+          defaultVolume = i === 0 ? 1.90 : 0.16;
+          defaultPositive = i === 0 ? 30 : 3;
+          defaultTotal = i === 0 ? 49 : 48;
+        } else {
+          defaultDilutionFactor = '';
+          defaultVolume = '';
+          defaultPositive = '';
+          defaultTotal = '';
+        }
+
+        container.innerHTML += `
+          <div>
+            <h4>Data ${i + 1}</h4>
+            <label for="d${i}">Dilution (d):</label>
+            <input type="number" id="d${i}" step="any" value="${defaultDilutionFactor}"><br>
+            <label for="w${i}">Volume (w):</label>
+            <input type="number" id="w${i}" step="any" value="${defaultVolume}"><br>
+            <label for="x${i}">Positive (x):</label>
+            <input type="number" id="x${i}" step="any" value="${defaultPositive}"><br>
+            <label for="n${i}">Total (n):</label>
+            <input type="number" id="n${i}" value="${defaultTotal}">
+          </div>
+        `;
+      }
+      container.innerHTML += '<button id="button" onclick="calculateMPN()">Calculate MPN</button>';
+    }
+    // end addDilutionLevels()
+
+	// main MPN estimation function
+	let allResults = []; // Array to store results  for download all results func
+    function calculateMPN() {
+      const numLevels = sanitizeInput(document.getElementById('numLevels').value, 1, 2);
+      if (numLevels === null) {
+        document.getElementById('results').textContent = "Please enter a valid number between 1 and 2.";
+        return;
+      }
+
+      let d = [], w = [], x = [], n = [];
+      for (let i = 0; i < numLevels; i++) {
+        d.push(sanitizeInput(document.getElementById(`d${i}`).value));
+        w.push(sanitizeInput(document.getElementById(`w${i}`).value));
+        x.push(sanitizeInput(document.getElementById(`x${i}`).value));
+        n.push(sanitizeInput(document.getElementById(`n${i}`).value));
+      }
+
+      // Check for invalid inputs
+      if (d.some(value => value === null) || w.some(value => value === null) || x.some(value => value === null) || n.some(value => value === null)) {
+        document.getElementById('results').textContent = "Please enter valid numeric inputs.";
+        return;
+      }
+      // Check if for one or two levels, all positives equal the total number of subsamples
+      let allPositive = true; // Flag to check all levels are fully positive
+      for (let i = 0; i < numLevels; i++) {
+        if (x[i] !== n[i]) {
+          allPositive = false;
+          break;
+        }
+      }
+	
+      if (allPositive && (numLevels === 1 || numLevels === 2)) {
+        document.getElementById('results').innerHTML = "Result: NaN - All specified levels have positives equal to total number of wells.";
+        return; // Stop further execution
+      }
+	  
+	  const thomasMpnResult = thomasMPN(x,n,d,w);
+      //const initialGuess = 0.1; // Starting point for mu, change to thomas func
+	  const initialGuess = thomasMpnResult * 0.5; 
+      const tolerance = 1e-12; // Tolerance for convergence, make low for high dilution virus data
+      const maxIterations = 100; // Maximum number of iterations
+	  
+	  // for Newton
+      const result = calculateNewtonRaphsonMPN(d, w, x, n, initialGuess, tolerance, maxIterations);
+	  const mpn = result.mpn;
+	  // add rarity 
+      const rarity = mpnErrorMetrics(x, d, n, w, mpn);
+	  //confidence limits
+	  const confidence = jarvisCLMPN(mpn, d, x, w);
+	  const lowerCL = confidence.lowerCL;
+	  const upperCL = confidence.upperCL; 
+	  const xSim = xSimulate( mpn, n, x , w, d ); 
+	  const timestamp = new Date().toLocaleString(); //new Date().toISOString(); 
+	  const timestamp2 = new Date().toLocaleDateString();
+	  const salMPN = salamaMPN(mpn, n, w, d);
+ 	  
+	  //  For download allResults func
+	allResults.push({
+		sessionID: sessionID,
+		timestamp: timestamp,
+		d: d.join("_"),
+		w: w.join("_"),
+		x: x.join("_"),
+		n: n.join("_"),
+        mpn: mpn, //add toPrecision
+		lowerCL: lowerCL, //add toPrecision
+		upperCL: upperCL, //add toPrecision
+        rarity: rarity.toPrecision(4),
+        iterations: result.iterations,
+		expectedXs: xSim.xSim.join("_"),
+		ThomasMPN: thomasMpnResult,
+		salMPN: salMPN
+    });
+	document.getElementById('results').innerHTML = `<div> <label> MPN: </label><label class=label2>${Math.round(mpn * 1000) / 1000} </label><div><label> 95%LL: </label><label class=label2>${Math.round(lowerCL * 1000)/1000}  </label><div><label> 95%UL: </label><label class=label2>${Math.round(upperCL * 1000)/1000}  </label><div><label> Rarity: </label><label class=label2>${rarity.toPrecision(4)}  </label><div><label> Iterations: </label><label class=label2>${result.iterations}  </label><div><label> Date: </label><label class=label2>${timestamp2}  </label> <div><label>xsim:</label><label class =label2> ${xSim.xSim.join("_")} </label> <div><label>Salama MPN: </label class=label2> ${Math.round(salMPN  * 1000)/1000}</label></div>`; 
+     // document.getElementById('results').innerHTML = `xsim: ${xSim.xSim.join("_")}`
+	  // add timestamp for this func
+	 // document.getElementById('timedate').innerHTML = Date();
+    }
+    // end calculateMPN()
+	
+	// Main Newton func
+    function calculateNewtonRaphsonMPN(d, w, x, n, initialGuess, tolerance, maxIterations) {
+      let mu = initialGuess;
+      let iterations = 0;
+      for (let iteration = 0; iteration < maxIterations; iteration++) {
+        iterations++;
+		console.log("Newton iterations:", iterations);
+        const firstDerivative = logMLEDerivative(mu, d, w, x, n); //uses helper function
+        const secondDerivative = logMLESecondDerivative(mu, d, w, x, n); //uses helper function
+        if (Math.abs(firstDerivative) < tolerance) {
+          return { mpn: mu, iterations: iterations };
+        }
+        mu -= firstDerivative / secondDerivative;
+		console.log("Newton MPN:", mu);
+      }
+	  
+      return { mpn: mu, iterations: iterations };
+    }
+    // end calculateNewtonRaphsonMPN()
+
+    // MPN first and second derivative helper functions for Newton
+    function logMLEDerivative(mu, d, w, x, n) {
+      return d.reduce((sum, di, i) => sum + (di * w[i] * x[i] / (1 - Math.exp(-di * w[i] * mu)) - n[i] * di * w[i]), 0);
+    }
+
+    function logMLESecondDerivative(mu, d, w, x, n) {
+      return d.reduce((sum, di, i) => {
+        let expTerm = Math.exp(-di * w[i] * mu);
+        return sum - ((di * w[i]) ** 2 * x[i] * expTerm / ((1 - expTerm) ** 2));
+      }, 0);
+    }
+    //end Newton helper functions
+	
+	
+	//rarity begin
+	// helper func
+	function binomialCoefficient(n, x) {
+		if (Number.isNaN(n) || Number.isNaN(x)) return NaN;
+		if (x < 0 || x > n) return 0;
+		if (x === 0 || x === n) return 1;
+		if (x === 1 || x === n - 1) return n;
+
+		if (n - x < x) x = n - x;
+		let result = n;
+		for (let i = 2; i <= x; i++) {
+			result *= (n - i + 1) / i;
+		}
+		return Math.round(result);
+	}
+	// helper func
+	function logChoose(n, x) {
+		return Math.log(binomialCoefficient(n, x));
+	}
+	//main func
+	function dbinom(x, n, p) {
+		return logChoose(n, x) + x * Math.log(p) + (n - x) * Math.log(1 - p);
+	}
+	
+    //main Rarity func See Blodgett and Jarvis
+    function mpnErrorMetrics(x, d, n, w, mpn) {
+        let p = d.map((di, i) => 1 - Math.exp(-mpn * di * w[i]));
+        let mostLikelyX = n.map((ni, i) => Math.min(ni, Math.floor((ni * p[i]) + p[i]))); 
+			let jointLikelihood = x.reduce((acc, xi, i) => {
+			const likelihood = Math.exp(dbinom(xi, n[i], p[i]));
+			if(isNaN(likelihood ) || likelihood === Infinity) {
+				 return acc * 1e-50; // 1e-308;
+			} else {
+				return acc * likelihood;
+			}
+			}, 1);
+			
+		console.log('jointLikelihood :', jointLikelihood );
+		let bestJointLikelihood = mostLikelyX.reduce((acc, mlxi, i) => {
+			const bestLikelihood = Math.exp(dbinom(mlxi, n[i], p[i]));
+			if(isNaN(bestLikelihood ) || bestLikelihood === Infinity) {
+				 return acc * 1e-50; //1e-308;
+			} else {
+				return acc * bestLikelihood;
+			}
+			}, 1);
+			
+		console.log('bestJointLikelihood:', bestJointLikelihood);
+		
+		// trap flushes here too
+		let ratio = jointLikelihood / bestJointLikelihood;
+		// trap flushes here too
+		console.log('Rarity :', ratio );
+		return (isNaN(ratio ) ? "what data is this?" : ratio );
+    }
+    //rarity end
+	
+	
+		//Expected x values
+	function xSimulate( mpn, n, x , w, d ) {
+		let p = d.map((di, i) => 1 - Math.exp(-mpn * di * w[i]));
+        let mostLikelyX = n.map((ni, i) => Math.min(ni, Math.floor((ni * p[i]) + p[i])));
+		return { xSim : mostLikelyX, p: p };
+	}
+	//end expected x values
+	
+	// 95% confidence limits func
+	// Jarvis 95% CL
+	function jarvisCLMPN(mpn, d, x, w) {
+    //const sigLevel = 0.05;
+    const critVal = 1.96; // Approximate (because JS doesnt have qnorm) Z-score for 95% confidence; adjust if necessary
+    let varianceSum = 0;
+
+    for (let i = 0; i < d.length; i++) {
+        const expTerm = Math.exp(-d[i] * w[i] * mpn);
+        const numer = x[i] * d[i] * d[i] * w[i] * w[i] * expTerm;
+        const denom = (1 - expTerm) ** 2;
+        varianceSum += numer / denom;
+    }
+
+    const variance = 1 / varianceSum;
+    const varLogMPN = variance / (mpn * mpn); // Use mpn squared
+    const seLog = Math.sqrt(varLogMPN);
+    const meLog = critVal * seLog;
+
+    const lowerCL = mpn * Math.exp(-meLog);
+    const upperCL = mpn * Math.exp(meLog);
+
+    return { lowerCL: lowerCL, upperCL: upperCL };
+}
+	//end Jarvis CL
+
+  // Thomas MPN
+  function thomasMPN(x, n, d, w) {
+      // have the same length
+      if (x.length !== n.length || x.length !== d.length || x.length !== w.length) {
+          throw new Error("Thomas MPN arrays must have identical lengths");
+      }
+      const sumX = x.reduce((acc, val) => acc + val, 0);
+      const sumDenominatorComponent = n.map((ni, index) => (ni - x[index]) * d[index] * w[index])
+                                     .reduce((acc, val) => acc + val, 0);
+      const sumNDW = n.map((ni, index) => ni * d[index] * w[index])
+                    .reduce((acc, val) => acc + val, 0);
+      const denominator = Math.sqrt(sumDenominatorComponent * sumNDW);
+      const thomasMPN = sumX / denominator;
+	  console.log('Estimated Thomas MPN:', thomasMPN);
+      return thomasMPN;
+}
+	//end Thomas 
+
+	//Salama MPN
+	//helper func
+	function mpnCosh(x) {
+		return (Math.exp(x) + Math.exp(-x)) / 2;
+	}
+	//helper func
+	function mpnSinh(x) {
+		return (Math.exp(x) - Math.exp(-x)) / 2;
+	}
+	function salamaMPN(u, n, w, d) {
+		if (u === 0) {
+			return 0;
+		} else if (!isFinite(u)) {
+			return NaN;
+		} else {
+			const amount2 = w.map((wi, i) => Math.pow(wi * d[i], 2));
+			const amount3 = w.map((wi, i) => Math.pow(wi * d[i], 3));
+			const lambdaV = w.map((wi, i) => u * wi * d[i]);
+			const ps = lambdaV.map(lv => 1 - Math.exp(-lv));
+			const zi = ps.map((p, i) => n[i] * p);
+			const coshTerm = lambdaV.map(lv => mpnCosh(lv) - 1);
+			let D = zi.map((z, i) => (amount2[i] * z) / (2 * coshTerm[i])).reduce((acc, val) => acc + val, 0);
+			let wi1 = amount2.map((a2, i) => a2 / (2 * Math.pow(ps[i], 2) * Math.pow(D, 3)));
+			let wi2 = zi.map((z, i) => {
+            let term = (amount3[i] * z * mpnSinh(lambdaV[i])) / Math.pow(coshTerm[i], 2);
+            return isNaN(term) ? 0 : term;  // trap NaNs
+        }).reduce((acc, val) => acc + val, 0);
+			let wi3 = amount3.map((a3, i) => a3 / (ps[i] * coshTerm[i] * Math.pow(D, 2)));
+			let wi = wi1.map((w1, i) => w1 * wi2 - wi3[i]);
+			let results = u - 0.5 * wi.map((w, i) => w * zi[i] * Math.exp(-lambdaV[i])).reduce((acc, val) => acc + val, 0);
+			console.log('Estimated salamaMPN:', results);
+			return results;
+    }
+}
+	// end Salama
+	
+	// BEGIN Spearman-Karber
+	// Function to calculate SE and CL
+	function SK_SE(x, n, d, w) {
+		const p = x.map((xi, i) => xi / n[i]);
+		const dDelta = Math.min(...d.map((di, i) => Math.abs(Math.log10(di * w[i]) - Math.log10(d[i - 1] * w[i - 1]))).slice(1));
+		const logSe = Math.sqrt(dDelta ** 2 * p.reduce((sum, pi, i) => sum + (pi * (1 - pi)) / (n[i] - 1), 0));
+		const CL = 1.96 * logSe;
+		return { SE: logSe, CL: CL };
+	}
+	
+	// Helper function to make vector monotonic
+	function p_helper(p) {
+		while (p.some((pi, i) => i > 0 && pi < p[i - 1])) {
+			for (let i = 1; i < p.length - 1; i++) {
+				if (p[i] < p[i + 1]) {
+				const avg = (p[i] + p[i + 1]) / 2;
+				p[i] = avg;
+				p[i + 1] = avg;
+				}
+			}
+		}
+		return p;
+	}
+
+// Main function to calculate Haas.SK
+function Haas_SK(x, n, d, w) {
+  try {
+    const pData = x.map((xi, i) => xi / n[i]);
+    const p = p_helper(pData.slice());
+
+    // Check if p has become empty after monotonic adjustments
+    if (p.length === 0) {
+      throw new Error("Proportion array is empty after monotonic adjustments");
+    }
+
+    const dDelta = Math.min(...d.map((di, i) => Math.abs(Math.log10(di * w[i]) - Math.log10(d[i - 1] * w[i - 1]))).slice(1));
+    if (d.some((di, i) => Math.abs(Math.log10(di * w[i]) - Math.log10(d[i - 1] * w[i - 1])) - dDelta > 0.001)) {
+      throw new Error("Dilutions are not uniformly distributed");
+    }
+
+    const index = p.lastIndexOf(1.0);
+    // Check if index is valid
+    if (index === -1 || index === p.length - 1) {
+      throw new Error("Invalid index for highest dilution with all positive responses");
+    }
+
+    const pIndex = p.slice(index);
+    const dLog = d.map((di, i) => Math.log10(di * w[i]));
+    const dIndex = dLog[index];
+    const Q = dIndex + 0.5 * dDelta - dDelta * pIndex.reduce((sum, pi) => sum + pi, 0);
+
+    // SE and CL calculation
+    const CL = SK_SE(x, n, d, w);
+    const lo95 = Q + CL.CL;
+    const hi95 = Q - CL.CL;
+    const skEst = 10 ** -Q;
+
+    return {
+      frequencies: pData,
+      adjustedFrequencies: p,
+      log10DilutionFactor: dDelta,
+      highestDilutionIndex: index,
+      frequencyRangeForSKEstimate: pIndex,
+      logSK: Q,
+      SE: CL.SE,
+      log95Lo: lo95,
+      log95Hi: hi95,
+      arithmeticSK: skEst
+    };
+  } catch (error) {
+    console.warn("An error occurred: ", error.message);
+    return {
+      frequencies: null,
+      adjustedFrequencies: null,
+      log10DilutionFactor: null,
+      highestDilutionIndex: null,
+      frequencyRangeForSKEstimate: null,
+      logSK: null,
+      SE: null,
+      log95Lo: null,
+      log95Hi: null,
+      arithmeticSK: null
+    };
+  }
+}
+
+
+
+	// END 
+
+	// download csv
+	function downloadResults() {
+  const maxResults = 1000; // Set a limit for the number of results
+  if (allResults.length > maxResults) {
+    alert(`Too many results to download. The maximum allowed is ${maxResults}. Please reduce the number of calculations.`);
+    return;
+  }
+
+  let csvContent = "data:text/csv;charset=utf-8,SessionID, Date, Time, Dilution(d),Volume(w),Positive(x),Total(n),MPN, 95LL, 95UL, Rarity,Iterations, expectedXs, ThomasMPN, SalamaMPN \n" 
+    + allResults.map(result => `${sessionID},${result.timestamp},${result.d},${result.w},${result.x},${result.n},${result.mpn},${result.lowerCL},${result.upperCL},${result.rarity},${result.iterations},${result.expectedXs},${result.ThomasMPN},${result.salMPN}`).join("\n");
+
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement("a");
+  link.setAttribute("href", encodedUri);
+  link.setAttribute("download", "mpn_results.csv");
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadData();
+  // Add input validation for all numeric fields
+  document.querySelectorAll('input[type="number"]').forEach(input => {
+    input.addEventListener('input', function () {
+      if (isNaN(this.value) || this.value === '') {
+        this.value = ''; // Clear invalid input
+        alert('Please enter a valid numeric value.');
+      }
+    });
+  });
+});
+
+document.addEventListener('input', saveData);
+
+function sanitizeInput(value, min = 0, max = Infinity) {
+  const num = parseFloat(value);
+  if (isNaN(num) || num < min || num > max) {
+    return null; // Invalid input
+  }
+  return num;
+}
+
+function toggleButtonState() {
+  const numLevels = document.getElementById('numLevels').value;
+  const isValid = !isNaN(numLevels) && numLevels >= 1 && numLevels <= 2;
+  document.getElementById('generateButton').disabled = !isValid;
+}
+
+function resetForm() {
+  if (confirm("Are you sure you want to reset the form? This will clear all inputs and results.")) {
+    document.getElementById('numLevels').value = '';
+    document.getElementById('inputFields').innerHTML = '';
+    document.getElementById('results').innerHTML = '';
+    allResults = []; // Clear stored results
+    localStorage.clear(); // Clear localStorage
+    console.log("Form and localStorage have been reset.");
+  }
+}
+
+function saveData() {
+  const numLevels = document.getElementById('numLevels').value;
+  const inputFields = Array.from(document.querySelectorAll('#inputFields input')).map(input => ({
+    id: input.id,
+    value: input.value
+  }));
+  localStorage.setItem('numLevels', numLevels);
+  localStorage.setItem('inputFields', JSON.stringify(inputFields));
+  localStorage.setItem('allResults', JSON.stringify(allResults));
+  console.log("Data saved to localStorage.");
+}
+
+function loadData() {
+  const numLevels = localStorage.getItem('numLevels');
+  const inputFields = JSON.parse(localStorage.getItem('inputFields'));
+  const savedResults = JSON.parse(localStorage.getItem('allResults'));
+
+  if (numLevels) {
+    document.getElementById('numLevels').value = numLevels;
+    toggleButtonState(); // Enable the "Generate" button if valid
+    addDilutionLevels(); // Regenerate input fields
+  }
+
+  if (inputFields) {
+    inputFields.forEach(field => {
+      const input = document.getElementById(field.id);
+      if (input) {
+        input.value = field.value; // Populate the input field with the saved value
+      }
+    });
+  }
+
+  if (savedResults) {
+    allResults = savedResults;
+    console.log("Results loaded from localStorage:", allResults);
+  }
+}
+	// end download
+  </script>
+  
+<!-- <p id="timedate"></p> -->
+<br>
+<!-- Download results as csv for all estimations. --> 
+<p>
+<button id="button" onclick="downloadResults()">Download All Results</button>
+<br>
+<button onclick="resetForm()">Reset</button>
+<br>
+
+</body>
+</html>
+
