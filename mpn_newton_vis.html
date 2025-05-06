@@ -1,0 +1,423 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MPN Newton–Raphson Visual Explorer</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 2rem auto; padding: 1rem; }
+    h1 { text-align: center; margin-bottom: 1rem; }
+    .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+    label { display: block; margin-bottom: 0.25rem; }
+    input, button, textarea { width: 100%; padding: 0.5rem; box-sizing: border-box; }
+    button { grid-column: 1 / -1; background: #007BFF; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    button:hover { opacity: 0.9; }
+    canvas { border: 1px solid #ccc; width: 100%; height: 400px; margin-top: 1rem; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: right; }
+    th { background: #f2f2f2; }
+    .hover-tooltip {
+        position: fixed;  /* Changed from absolute to fixed */
+        display: none;
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid #ccc;
+        padding: 4px 8px;
+        border-radius: 4px;
+        pointer-events: none;
+        z-index: 1000;
+        font-size: 12px;
+        white-space: pre;  /* Preserve line breaks */
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+    }
+    @media (max-width: 600px) {
+        body { 
+            margin: 1rem;
+            padding: 0.5rem;
+        }
+        .controls { 
+            grid-template-columns: 1fr;
+        }
+        canvas { 
+            height: 300px;
+        }
+        table {
+            font-size: 14px;
+        }
+        th, td {
+            padding: 0.25rem;
+        }
+    }
+  </style>
+</head>
+<body>
+  <h1>MPN Newton–Raphson Visual Explorer</h1>
+  <div class="controls">
+    <div>
+        <label for="x">Positives (comma-separated):</label>
+        <input type="text" id="x" value="30,4" />
+    </div>
+    <div>
+        <label for="n">Totals:</label>
+        <input type="text" id="n" value="49,48" />
+    </div>
+    <div>
+        <label for="w">Volumes:</label>
+        <input type="text" id="w" value="1.9,0.16" />
+    </div>
+    <div>
+        <label for="d">Dilutions:</label>
+        <input type="text" id="d" value="0.01,0.01" />
+    </div>
+    <div>
+        <label for="guess">Initial Guess:</label>
+        <input type="number" id="guess" value="1" step="any" />
+        <button onclick="document.getElementById('guess').value = suggestInitialGuess(
+            parseVector(document.getElementById('x').value),
+            parseVector(document.getElementById('n').value),
+            parseVector(document.getElementById('w').value),
+            parseVector(document.getElementById('d').value)
+        )">Suggest</button>
+    </div>
+    <div>
+        <label for="tol">Tolerance:</label>
+        <input type="number" id="tol" value="1e-6" step="any" />
+    </div>
+    <div>
+        <label for="maxit">Max Iterations:</label>
+        <input type="number" id="maxit" value="50" />
+    </div>
+    <button id="runBtn">Calculate MPN</button>
+  </div>
+  <canvas id="plot"></canvas>
+  <div id="output"></div>
+  <script>
+    const plot = document.getElementById('plot');
+    const ctx = plot.getContext('2d');
+
+    // helper function
+    function formatNumber(num) {
+        return Number(num.toPrecision(6));
+    }
+
+    function resizeCanvas() {
+      // Set actual canvas dimensions to match display size
+      const rect = plot.getBoundingClientRect();
+      plot.width = rect.width;
+      plot.height = rect.height;
+    }
+
+    function clearCanvas() { ctx.clearRect(0, 0, plot.width, plot.height); }
+
+    function drawGrid(xmin, xmax, ymin, ymax) {
+        const w = plot.width, h = plot.height;
+        
+        // grid style
+        ctx.strokeStyle = '#eee';
+        ctx.setLineDash([2, 2]);
+        
+        // grid lines
+        const xStep = (xmax - xmin)/10;
+        for(let x = xmin; x <= xmax; x += xStep) {
+            const px = ((x - xmin)/(xmax - xmin)) * w;
+            ctx.beginPath();
+            ctx.moveTo(px, 0);
+            ctx.lineTo(px, h);
+            ctx.stroke();
+        }
+        
+        // grid lines
+        const yStep = (ymax - ymin)/10;
+        for(let y = ymin; y <= ymax; y += yStep) {
+            const py = h - ((y - ymin)/(ymax - ymin)) * h;
+            ctx.beginPath();
+            ctx.moveTo(0, py);
+            ctx.lineTo(w, py);
+            ctx.stroke();
+        }
+        
+        // Reset
+        ctx.setLineDash([]);
+    }
+
+    function drawFunction(f, xmin, xmax, ymin, ymax) {
+      const w = plot.width, h = plot.height;
+      ctx.strokeStyle = '#007BFF'; ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let i = 0; i <= w; i++) {
+        const x = xmin + (i / w) * (xmax - xmin);
+        const y = f(x);
+        const py = h - ((y - ymin) / (ymax - ymin)) * h;
+        if (i === 0) ctx.moveTo(i, py); else ctx.lineTo(i, py);
+      }
+      ctx.stroke();
+    }
+
+    // drawLine function with color parameter
+    function drawLine(x0, y0, slope, xmin, xmax, ymin, ymax, color) {
+      const w = plot.width, h = plot.height;
+      const yfn = x => y0 + slope * (x - x0);
+      ctx.strokeStyle = color; 
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let i = 0; i <= w; i++) {
+        const x = xmin + (i / w) * (xmax - xmin);
+        const y = yfn(x);
+        const px = i;
+        const py = h - ((y - ymin) / (ymax - ymin)) * h;
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+    }
+
+    function parseVector(str) {
+      return str.split(',').map(x => parseFloat(x.trim()));
+    }
+
+    // suggestInitialGuess based pm Thomas MPN
+    function suggestInitialGuess(x, n, w, d) {
+        const sumX = x.reduce((a, b) => a + b, 0);
+        const sumPosWeight = x.reduce((acc, xi, i) => acc + n[i]*d[i]*w[i], 0);
+        const sumNegWeight = x.reduce((acc, xi, i) => acc + (n[i]-xi)*d[i]*w[i], 0);
+        
+        const guess = sumX / Math.sqrt(sumPosWeight * sumNegWeight);
+        return formatNumber(guess);
+    }
+    // First and second derivatives of the MPN function
+    function firstDerivative(u, d, x, n, w) {
+      let sum = 0;
+      for(let i = 0; i < x.length; i++) {
+          sum += d[i] * w[i] * x[i] / (1 - Math.exp(-d[i] * w[i] * u)) - n[i] * d[i] * w[i];
+      }
+      return sum;
+    }
+
+    function secondDerivative(u, d, x, n, w) {
+      let sum = 0;
+      for(let i = 0; i < x.length; i++) {
+          const term = d[i] * w[i];
+          sum += -term * term * x[i] * Math.exp(-term * u) / Math.pow(1 - Math.exp(-term * u), 2);
+      }
+      return sum;
+    }
+
+    // CI but not as good as Jarvis but for now keep
+    function calculateConfidenceInterval(mpn, x, n, w, d) {
+        // Fisher Information
+        const I = -secondDerivative(mpn, d, x, n, w);
+        // Standard error
+        const se = 1/Math.sqrt(I);
+        // 95% CI
+        return {
+            lower: mpn - 1.96 * se,
+            upper: mpn + 1.96 * se
+        };
+    }
+
+    function validateInputs(x, n, w, d) {
+        const errors = [];
+        
+        // Check for valid numbers 
+        if (x.some(isNaN)) errors.push("Invalid positive counts");
+        if (n.some(isNaN)) errors.push("Invalid total counts");
+        if (w.some(isNaN)) errors.push("Invalid volumes");
+        if (d.some(isNaN)) errors.push("Invalid dilutions");
+        
+        // Check MPN 
+        if (x.some(v => v < 0 || !Number.isInteger(v))) 
+            errors.push("Positive counts must be non-negative integers");
+        if (n.some(v => v <= 0 || !Number.isInteger(v))) 
+            errors.push("Total counts must be positive integers");
+        if (w.some(v => v <= 0)) 
+            errors.push("Volumes must be positive numbers");
+        if (d.some(v => v <= 0)) 
+            errors.push("Dilutions must be positive numbers");
+        if (x.some((v, i) => v > n[i])) 
+            errors.push("Positive counts cannot exceed total counts");
+        
+        return errors;
+    }
+
+    function addPointHover(point, canvas) {
+        const tooltip = document.createElement('div');
+        tooltip.className = 'hover-tooltip';
+        document.body.appendChild(tooltip);
+
+        canvas.addEventListener('mousemove', e => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            if (Math.hypot(x - point.px, y - point.py) < 5) {
+                tooltip.style.display = 'block';
+                // clientX/Y viewport-relative
+                tooltip.style.left = `${e.clientX + 10}px`;
+                tooltip.style.top = `${e.clientY + 10}px`;
+                tooltip.textContent = `u: ${point.u.toFixed(6)}\nf(u): ${point.fx.toExponential(2)}`;
+            } else {
+                tooltip.style.display = 'none';
+            }
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            tooltip.style.display = 'none';
+        });
+
+        // Clean up simulation
+        return () => tooltip.remove();
+    }
+
+    document.getElementById('runBtn').addEventListener('click', () => {
+      resizeCanvas();
+      
+      // Parse input vectors
+      const x = parseVector(document.getElementById('x').value);
+      const n = parseVector(document.getElementById('n').value);
+      const w = parseVector(document.getElementById('w').value);
+      const d = parseVector(document.getElementById('d').value);
+      
+      // Validate vectors have same length
+      if (new Set([x.length, n.length, w.length, d.length]).size !== 1) {
+          document.getElementById('output').innerHTML = 
+              '<p style="color: red">All vectors must have the same length</p>';
+          return;
+      }
+
+      // Validate inputs
+      const errors = validateInputs(x, n, w, d);
+      if (errors.length > 0) {
+          document.getElementById('output').innerHTML = 
+              `<p style="color: red">${errors.join('<br>')}</p>`;
+          return;
+      }
+
+      // For Newton-Raphson iteration:
+      const f = u => firstDerivative(u, d, x, n, w);  // This is the Score function
+      const derivative = u => secondDerivative(u, d, x, n, w);  // This is its derivative
+
+      let u = parseFloat(document.getElementById('guess').value);
+      if (isNaN(u)) {
+          document.getElementById('output').innerHTML = 
+              '<p style="color: red">Invalid initial guess</p>';
+          return;
+      }
+
+      const tol = parseFloat(document.getElementById('tol').value);
+      const maxit = parseInt(document.getElementById('maxit').value, 10);
+      const iters = [];
+
+      // Newton-Raphson iteration 
+      for (let i = 0; i < maxit; i++) {
+        const fx = f(u);        // Using first derivative as our function
+        const dfx = derivative(u);  // Using second derivative for Newton step
+        if (Math.abs(dfx) < 1e-12) break;  // Check for flat derivative
+        
+        const unew = u - fx / dfx;  // Newton-Raphson step
+        iters.push({ i, u, fx, dfx });
+        
+        if (Math.abs(unew - u) < tol) { 
+            u = unew;
+            break;
+        }
+        u = unew;
+      }
+
+      // Find plot bounds
+      const xmin = 0;  // MPN parameter u is positive
+      const xmax = Math.max(5, ...iters.map(p => p.u)) + 1; // At least show up to u=5
+      
+      // Sample points for function visualization
+      const ys = [];
+      for(let i = 0; i <= 100; i++) {
+          const x = xmin + (i/100) * (xmax - xmin);
+          try {
+              ys.push(f(x));
+          } catch(e) {
+              ys.push(NaN);
+          }
+      }
+      const validYs = ys.filter(y => !isNaN(y) && isFinite(y));
+      const ymin = Math.min(-10, ...validYs);
+      const ymax = Math.max(10, ...validYs);
+
+      // Clear and draw
+      clearCanvas();
+      drawGrid(xmin, xmax, ymin, ymax);  // Add this line
+
+      // Draw zero line
+      ctx.strokeStyle = '#999';
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      const zeroY = plot.height - ((0 - ymin) / (ymax - ymin)) * plot.height;
+      ctx.moveTo(0, zeroY);
+      ctx.lineTo(plot.width, zeroY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Draw function
+      drawFunction(f, xmin, xmax, ymin, ymax);
+
+      // Draw Newton steps with color progression
+      iters.forEach((p, idx) => {
+          const { u, fx, dfx } = p;
+          // Calculate color progression from red to green
+          const progress = idx / (iters.length - 1);
+          const color = idx === iters.length - 1 ? 
+              '#00ff00' : // Final step in green
+              `rgb(${255 * (1-progress)}, ${255 * progress}, 0)`; // Red to green gradient
+
+          // Draw tangent line with color
+          drawLine(u, fx, dfx, xmin, xmax, ymin, ymax, color);
+          
+          // Draw point
+          const px = (u - xmin) / (xmax - xmin) * plot.width;
+          const py = plot.height - ((fx - ymin) / (ymax - ymin)) * plot.height;
+          ctx.beginPath();
+          ctx.fillStyle = color;
+          ctx.arc(px, py, 4, 0, 2 * Math.PI);
+          ctx.fill();
+
+          // Add hover for this point
+          addPointHover({...p, px, py}, plot);
+      });
+
+      // Add legend
+      ctx.font = '12px Arial';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#000';
+      ctx.fillText('Iterations:', 10, 20);
+      ctx.fillStyle = '#ff0000';
+      ctx.fillText('First', 10, 40);
+      ctx.fillStyle = '#00ff00';
+      ctx.fillText('Last', 10, 60);
+
+      // Iteration table
+      const out = document.getElementById('output');
+      let html = '<table><tr><th>Iter</th><th>u</th><th>f(u)</th><th>f\'(u)</th></tr>';
+      iters.forEach(p => {
+        html += `<tr>
+            <td>${p.i}</td>
+            <td>${formatNumber(p.u)}</td>
+            <td>${p.fx.toExponential(2)}</td>
+            <td>${p.dfx.toExponential(2)}</td>
+        </tr>`;
+      });
+
+      // Calculate confidence interval
+      const ci = calculateConfidenceInterval(u, x, n, w, d);
+
+      // Update the CI display line
+      const finalMPN = formatNumber(u);
+      const ciLower = formatNumber(ci.lower);
+      const ciUpper = formatNumber(ci.upper);
+      html += `<tr><td colspan="4">MPN: ${finalMPN} (95% CI: ${ciLower} - ${ciUpper})</td></tr>`;
+
+      // Add convergence status to output
+      const converged = iters[iters.length - 1].fx < tol;
+      html += `<p>${converged ? 
+        '<span style="color: green">Converged</span>' : 
+        '<span style="color: red">Did not converge</span>'}</p>`;
+      out.innerHTML = html;
+    });
+
+  </script>
+</body>
+</html>
