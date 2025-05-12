@@ -1,0 +1,3 @@
+safe: false
+include: [".nojekyll"]
+exclude: ["README.md"]
